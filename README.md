@@ -274,4 +274,4 @@ docker exec -it mariadb sh -c \
 
 ## License
 
-This project is provided as-is under the [MIT License](LICENSE).
+This project is provided as-is under the [GNU GENERAL PUBLIC LICENSE](LICENSE).
