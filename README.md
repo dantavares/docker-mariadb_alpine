@@ -86,7 +86,7 @@ docker run -d \
   -v /your_data_dir:/var/lib/mysql \
   -v /your_init_dir:/docker-entrypoint-initdb.d \
   -p 3306:3306 \
-  etaylashev/mariadb
+  44934045/mariadb_alpine
 ```
 
 > Files inside `/docker-entrypoint-initdb.d/` are only executed once.  
@@ -120,7 +120,7 @@ docker run -d \
   -v /your_config_dir:/etc/my.cnf.d \
   -v /your_data_dir:/var/lib/mysql \
   -p 3306:3306 \
-  etaylashev/mariadb
+  44934045/mariadb_alpine
 ```
 
 ### Interactive MySQL Shell
