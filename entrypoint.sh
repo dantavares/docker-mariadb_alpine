@@ -116,7 +116,7 @@ if [ ! -d $DIR_DB/mysql ]; then
 
     chown -R $USER:$USER $DIR_DB
 
-    mysql_install_db --user=$USER --ldata=$DIR_DB > /dev/null
+    mariadb-install-db --user=$USER --ldata=$DIR_DB > /dev/null
 
     if [ "$MYSQL_ROOT_PASSWORD" = "" ]; then
         MYSQL_ROOT_PASSWORD=`pwgen 16 1`
@@ -161,7 +161,7 @@ EOF
 
     echo "FLUSH PRIVILEGES;" >> $tfile
 
-    /usr/bin/mysqld --user=$USER --bootstrap --verbose=0 --skip-name-resolve --skip-networking=0 < $tfile
+    /usr/bin/mariadbd --user=$USER --bootstrap --verbose=0 --skip-name-resolve --skip-networking=0 < $tfile
     rm -f $tfile
 
     dlog '[ok] - MySQL init process done. Ready for start up.'
@@ -174,7 +174,7 @@ EOF
 
         #-- Start a temporary server in background (local socket only, no networking)
         #-- Note: --daemonize is not available in Alpine builds of MariaDB
-        /usr/bin/mysqld \
+        /usr/bin/mariadbd \
             --user=$USER \
             --skip-name-resolve \
             --skip-networking \
@@ -185,7 +185,7 @@ EOF
         #-- Wait until the temporary server accepts connections
         RETRIES=30
         while [ $RETRIES -gt 0 ]; do
-            if mysqladmin \
+            if mariadb-admin \
                 --socket=/run/mysqld/mysqld_init.sock \
                 --user=root \
                 --password="$MYSQL_ROOT_PASSWORD" \
@@ -206,7 +206,7 @@ EOF
 
         #-- Helper: run SQL against the temporary server
         run_sql() {
-            mysql \
+            mariadb \
                 --socket=/run/mysqld/mysqld_init.sock \
                 --user=root \
                 --password="$MYSQL_ROOT_PASSWORD" \
@@ -220,7 +220,7 @@ EOF
             case "$f" in
                 *.sh)
                     dlog "[ok] - Running shell script: $f"
-                    # Execute with access to env vars; scripts may call mysql themselves
+                    # Execute with access to env vars; scripts may call mariadb themselves
                     sh "$fpath"
                     ;;
                 *.sql)
@@ -270,4 +270,4 @@ else
     WSREP=""
 fi
 #--skip-networking=0
-exec /usr/bin/mysqld --user=$USER --console ${WSREP} --skip-name-resolve $@
+exec /usr/bin/mariadbd --user=$USER --console ${WSREP} --skip-name-resolve $@
