@@ -4,7 +4,7 @@ A lightweight [MariaDB](https://mariadb.org/) Docker image built on top of [Alpi
 inspired by [yobasystems/alpine-mariadb](https://github.com/yobasystems/alpine-mariadb).  
 For the official MariaDB image maintained by the MariaDB developer community, see [hub.docker.com/_/mariadb](https://hub.docker.com/_/mariadb).
 
-| | |
+| Type | Link |
 |---|---|
 | **Docker Hub** | [hub.docker.com/r/44934045/mariadb_alpine](https://hub.docker.com/r/44934045/mariadb_alpine) |
 | **Source Code** | [github.com/dantavares/docker-mariadb_alpine](https://github.com/dantavares/docker-mariadb_alpine) |
