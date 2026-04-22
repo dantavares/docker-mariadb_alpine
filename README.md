@@ -2,10 +2,14 @@
 
 A lightweight [MariaDB](https://mariadb.org/) Docker image built on top of [Alpine Linux](https://alpinelinux.org/),
 inspired by [yobasystems/alpine-mariadb](https://github.com/yobasystems/alpine-mariadb).  
-
 For the official MariaDB image maintained by the MariaDB developer community, see [hub.docker.com/_/mariadb](https://hub.docker.com/_/mariadb).
 
-This Image on dockerhub: [https://hub.docker.com/r/44934045/mariadb_alpine](https://hub.docker.com/r/44934045/mariadb_alpine)
+| | |
+|---|---|
+| **Docker Hub** | [hub.docker.com/r/44934045/mariadb_alpine](https://hub.docker.com/r/44934045/mariadb_alpine) |
+| **Source Code** | [github.com/dantavares/docker-mariadb_alpine](https://github.com/dantavares/docker-mariadb_alpine) |
+
+---
 
 ## Overview
 
@@ -16,8 +20,9 @@ This Image on dockerhub: [https://hub.docker.com/r/44934045/mariadb_alpine](http
 
 **Key characteristics:**
 
-- Runs under the unprivileged `mysql` user (`uid=1002`, `gid=1000` by default — both adjustable via environment variables).
+- Runs under the unprivileged `mysql` user (`uid=1000`, `gid=1000` by default — both adjustable via environment variables).
 - Minimal footprint: only what is needed to run MariaDB is included.
+- Managed by [dumb-init](https://github.com/Yelp/dumb-init) to ensure correct signal handling and graceful shutdown.
 - Automatically executes initialization scripts on first boot (see [Initialization Scripts](#initialization-scripts)).
 
 ---
@@ -37,13 +42,13 @@ This Image on dockerhub: [https://hub.docker.com/r/44934045/mariadb_alpine](http
 | --------------------- | -------- | ----------------- | ---------------------------------------------------------------------------------------------------- |
 | `MYSQL_ROOT_PASSWORD` | No       | *(random)*        | Root password. If omitted on a fresh install, a random password is generated and printed to the log. |
 | `MYSQL_DATABASE`      | No       | —                 | Name of the database to create on first boot.                                                        |
-| `MYSQL_USER`          | No       | —                 | Application user granted full access to `MYSQL_DATABASE`. Requires `MYSQL_DATABASE` to be set.       |
+| `MYSQL_USER`          | No       | —                 | Application user granted full access to `MYSQL_DATABASE`. Requires `MYSQL_DATABASE` to be set.      |
 | `MYSQL_PASSWORD`      | No       | —                 | Password for `MYSQL_USER`.                                                                           |
 | `MYSQL_CHARSET`       | No       | `utf8`            | Default character set for the created database.                                                      |
 | `MYSQL_COLLATION`     | No       | `utf8_general_ci` | Default collation for the created database.                                                          |
-| `PUID`                | No       | `1002`            | UID to run the `mysql` service user as.                                                              |
+| `PUID`                | No       | `1000`            | UID to run the `mysql` service user as.                                                              |
 | `PGID`                | No       | `1000`            | GID to run the `mysql` service user as.                                                              |
-| `TZ`                  | No       | `UTC`             | Container timezone (e.g. `America/Toronto`).                                                         |
+| `TZ`                  | No       | `UTC`             | Container timezone (e.g. `America/Sao_Paulo`).                                                       |
 | `VERBOSE`             | No       | `0`               | Set to `1` for more detailed startup logs.                                                           |
 
 > **Note:** `MYSQL_USER` is only created when `MYSQL_DATABASE` is also defined.  
@@ -66,10 +71,10 @@ Files with any other extension are silently ignored.
 
 **How it works internally:**
 
-1. After the bootstrap phase, a temporary `mysqld` instance is started on a local Unix socket (no TCP port is exposed).
+1. After the bootstrap phase, a temporary MariaDB instance is started on a local Unix socket (no TCP port is exposed).
 2. The container waits until the server is ready to accept connections (up to 30 seconds).
 3. Each file in `/docker-entrypoint-initdb.d/` is processed in order.
-4. The temporary server is shut down gracefully before the final `mysqld` process starts.
+4. The temporary server is shut down gracefully before the final MariaDB process starts.
 
 If `MYSQL_DATABASE` is defined, SQL scripts are executed with that database pre-selected — useful for dumps
 that do not contain a `USE <database>;` statement.
@@ -79,6 +84,7 @@ that do not contain a `USE <database>;` statement.
 ```bash
 docker run -d \
   --name mariadb \
+  --stop-timeout 60 \
   -e MYSQL_ROOT_PASSWORD="Hard2Gue$$Password" \
   -e MYSQL_DATABASE=myapp \
   -e MYSQL_USER=myuser \
@@ -101,6 +107,7 @@ docker run -d \
 ```bash
 docker run -d \
   --name mariadb \
+  --stop-timeout 60 \
   -e VERBOSE=1 \
   -e MYSQL_ROOT_PASSWORD="Hard2Gue$$Password" \
   -e MYSQL_DATABASE=myapp \
@@ -116,6 +123,7 @@ docker run -d \
 ```bash
 docker run -d \
   --name mariadb \
+  --stop-timeout 60 \
   -e VERBOSE=1 \
   -v /your_config_dir:/etc/my.cnf.d \
   -v /your_data_dir:/var/lib/mysql \
@@ -123,10 +131,10 @@ docker run -d \
   44934045/mariadb_alpine
 ```
 
-### Interactive MySQL Shell
+### Interactive MariaDB Shell
 
 ```bash
-docker exec -it mariadb sh -c "exec mysql -u root -p"
+docker exec -it mariadb mariadb -u root -p
 ```
 
 ### Copy Default Configuration Files from the Container
@@ -134,6 +142,38 @@ docker exec -it mariadb sh -c "exec mysql -u root -p"
 ```bash
 docker cp mariadb:/etc/my.cnf.d/* ./config/
 ```
+
+---
+
+## Docker Compose
+
+```yaml
+services:
+  mariadb:
+    image: 44934045/mariadb_alpine
+    container_name: mariadb
+    restart: unless-stopped
+    stop_grace_period: 60s        # required for clean InnoDB shutdown
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      MYSQL_ROOT_PASSWORD: yourpassword
+      MYSQL_DATABASE: myapp
+      MYSQL_USER: myuser
+      MYSQL_PASSWORD: mypassword
+      TZ: America/Sao_Paulo
+
+volumes:
+  db-data:
+```
+
+> **Important:** `stop_grace_period: 60s` is required to allow InnoDB to flush data to disk before the
+> container is forcibly killed. Without it, Docker's default 10-second timeout may cause an abrupt
+> shutdown, resulting in a crash recovery (`Recovering after a crash using tc.log`) on the next startup.
+> This setting cannot be embedded in the image itself and must always be defined at the orchestration level.
 
 ---
 
@@ -149,6 +189,7 @@ metadata:
     app: mariadb
     purpose: database
 spec:
+  terminationGracePeriodSeconds: 60   # required for clean InnoDB shutdown
   volumes:
     - name: maria-conf
       hostPath:
@@ -158,7 +199,7 @@ spec:
         path: /data/mariadb/db
   containers:
     - name: mariadb
-      image: etaylashev/mariadb
+      image: 44934045/mariadb_alpine
       env:
         - name: VERBOSE
           value: "1"
@@ -198,7 +239,7 @@ ssl-key=/etc/my.cnf.d/server.key
 Connect a client over TLS:
 
 ```bash
-mysql -h <host> --ssl -u root -p
+mariadb -h <host> --ssl -u root -p
 ```
 
 Verify the connection and cipher in use:
@@ -215,13 +256,13 @@ For more information, refer to the [MariaDB Secure Connections documentation](ht
 
 ## Backup
 
-### Using `mysqldump`
+### Using `mariadb-dump`
 
 ```bash
 export MYSQL_ROOT_PASSWORD="Hard2Gue$$Password"
 
 docker exec mariadb sh -c \
-  "exec mysqldump --all-databases -uroot -p\"$MYSQL_ROOT_PASSWORD\"" \
+  "exec mariadb-dump --all-databases -uroot -p\"$MYSQL_ROOT_PASSWORD\"" \
   > /backup/all_databases.sql
 ```
 
@@ -229,11 +270,9 @@ To back up a single database:
 
 ```bash
 docker exec mariadb sh -c \
-  "exec mysqldump myapp -uroot -p\"$MYSQL_ROOT_PASSWORD\"" \
+  "exec mariadb-dump myapp -uroot -p\"$MYSQL_ROOT_PASSWORD\"" \
   > /backup/myapp.sql
 ```
-
-Or use the included sample script `backup.sh` (edit it to match your environment before running).
 
 ---
 
@@ -243,11 +282,9 @@ Or use the included sample script `backup.sh` (edit it to match your environment
 export MYSQL_ROOT_PASSWORD="Hard2Gue$$Password"
 
 docker exec -i mariadb sh -c \
-  "exec mysql -uroot -p\"$MYSQL_ROOT_PASSWORD\"" \
+  "exec mariadb -uroot -p\"$MYSQL_ROOT_PASSWORD\"" \
   < /backup/all_databases.sql
 ```
-
-Or use the included sample script `restore.sh`.
 
 ---
 
@@ -261,13 +298,13 @@ As a general guideline:
 1. Back up all databases (see [Backup](#backup)).
 2. Pull the new image version.
 3. Start the container pointing to the existing data volume.
-4. Run `mysql_upgrade` to update the system tables:
+4. Run `mariadb-upgrade` to update the system tables:
 
 ```bash
 export MYSQL_ROOT_PASSWORD="Hard2Gue$$Password"
 
 docker exec -it mariadb sh -c \
-  "exec mysql_upgrade -uroot -p\"$MYSQL_ROOT_PASSWORD\""
+  "exec mariadb-upgrade -uroot -p\"$MYSQL_ROOT_PASSWORD\""
 ```
 
 ---

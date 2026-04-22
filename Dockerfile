@@ -70,7 +70,7 @@ COPY --chmod=755 ./entrypoint.sh ./functions.sh /
 COPY ./mariadb-server.cnf /etc/my.cnf.d/
 
 EXPOSE 3306
-STOPSIGNAL SIGINT
+STOPSIGNAL SIGTERM
 VOLUME ["/etc/my.cnf.d","/var/lib/mysql"]
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--single-child", "/entrypoint.sh"]
